@@ -1,0 +1,4 @@
+# Don’t show a diff
+/.yarn/releases/** -diff
+/.yarn/plugins/** -diff
+yarn.lock -diff

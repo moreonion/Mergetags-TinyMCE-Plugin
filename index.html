@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>TinyMCE Merge Tags</title>
+    <script src="https://cdn.jsdelivr.net/npm/tinymce@8.1.2/tinymce.min.js" referrerpolicy="origin"></script>
+  </head>
+  <body>
+    <h1>Merge Tags plugin</h1>
+    <textarea id="editor">TinyMCE</textarea>
+
+    <script>
+      var mergeTags = [
+        { value: 'form.firstName', title: 'First Name' },
+        { value: 'form.lastName', title: 'Last Name' },
+        { value: 'form.email', title: 'Email Address' },
+        { value: 'form.phone', title: 'Phone Number' },
+        { value: 'form.address', title: 'Address' }
+      ];
+      tinymce.init({
+        selector: '#editor',
+        external_plugins: {
+          mergetags: '/dist/plugin.min.js'
+        },
+        mergetags_list: mergeTags,
+        plugins: 'lists link code',
+        toolbar: 'undo redo | mergetags',
+        menubar: false,
+        height: 400,
+        license_key: 'gpl'
+      });
+    </script>
+  </body>
+</html>

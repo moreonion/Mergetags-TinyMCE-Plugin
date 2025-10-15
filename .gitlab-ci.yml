@@ -1,0 +1,23 @@
+# GitLab CI templates
+#
+# See https://gitlab.more-onion.com/devops/ci-templates
+#
+include:
+  - project: 'devops/ci-templates'
+    file: '/templates/theme-base-template.yml'
+    ref: 2.2.0
+  - project: 'devops/ci-templates'
+    file: '/templates/theme-deploy-template.yml'
+    ref: 2.2.0
+
+test:
+  stage: test
+  script:
+  - yarn run test:xml
+  coverage: '/All files[^|]*\|[^|]*\s+([\d\.]+)/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage/cobertura-coverage.xml
+      junit: test-results.xml
