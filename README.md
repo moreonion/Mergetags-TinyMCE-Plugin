@@ -16,9 +16,10 @@ Compiled bundles include:
 
 The plugin registers a TinyMCE toolbar button and menu item for inserting merge tags.
 
-1. Include the plugin as an external TinyMCE plugin (e.g. `external_plugins: { mergetags: '/plugins/mergetags/plugin.js' }`).  
-2. Configure available tags via TinyMCE init options.  
-3. When used, the plugin inserts a placeholder like `{{First Name}}` into the editor content.
+1. Include the plugin as an external TinyMCE plugin (e.g. `external_plugins: { mergetags: '/plugins/mergetags/plugin.min.js' }`).  
+2. Configure available tags via TinyMCE init options (`mergetags_list`).  
+3. When used, the plugin inserts a placeholder like `{{first_name}}` into the editor content.
+4. Autocompletion is supported when typing `{{` in the editor.
 
 **Example:**
 
