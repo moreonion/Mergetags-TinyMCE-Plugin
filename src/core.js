@@ -1,210 +1,291 @@
-const escapeForRegex = (sourceString) => String(sourceString).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-const attrEscape = (attributeString) =>
-  String(attributeString).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+import { escapeForRegex, attrEscape } from './utils/escape.js'
+import State from './state.js' // internal dependency; not exposed outside
 
-export const makeCore = (editor, get, state) => {
-  const displayText = (tag) =>
-    get.getDisplayMode() === 'value' ? tag.value : (tag.title || tag.value)
+/**
+ * Owns: state, DOM/content transforms, styles/schema.
+ * Consumers (UI/Events/Commands) talk to Core instead of reaching into options/state directly.
+ */
+export default class Core {
+  /**
+   * @param {import('tinymce').Editor} editor
+   * @param {import('../settings/OptionsManager.js').OptionsManager} options
+   */
+  constructor (editor, options) {
+    this.editor = editor
+    this.options = options
+    this.state = new State(options) // state is private to Core
 
-  const createTokenElement = (tag, uid) => {
-    const documentRef = editor.getDoc()
-    const tokenElement = documentRef.createElement('span')
-    tokenElement.setAttribute('class', get.getTokenClass())
-    tokenElement.setAttribute('data-mt-val', tag.value)
-    if (uid) tokenElement.setAttribute('data-mt-uid', String(uid))
-    tokenElement.setAttribute('contenteditable', 'false')
+    // Ensure tokens & styles are ready on first load (no click required)
+    // Populate tokens immediately (in case PreInit already fired)
+    this.state.refreshFromOptions()
 
-    if (get.showBraces()) {
-      const prefixSpan = documentRef.createElement('span')
-      prefixSpan.setAttribute('class', get.getBraceClass())
-      prefixSpan.textContent = get.getPrefix()
+    // Hook TinyMCE lifecycle to install schema/styles + first transform
+    this.editor.on('PreInit', () => {
+      this.state.refreshFromOptions()
+      this.installSchemaAndStyles()
+    })
 
-      const textNode = documentRef.createTextNode(displayText(tag))
+    this.editor.on('init', () => {
+      // Next tick—after TinyMCE places initial HTML into the iframe
+      setTimeout(this.transformInitialContentOnce, 0)
+    })
 
-      const suffixSpan = documentRef.createElement('span')
-      suffixSpan.setAttribute('class', get.getBraceClass())
-      suffixSpan.textContent = get.getSuffix()
-
-      tokenElement.append(prefixSpan, textNode, suffixSpan)
-    }
-    else {
-      tokenElement.textContent = displayText(tag)
-    }
-    return tokenElement
+    // If content is set/loaded later, also transform
+    this.editor.on('LoadContent', this.transformInitialContentOnce)
   }
 
-  const toSpanHTML = (tag, uid) => {
-    const tokenClass = get.getTokenClass()
-    const braceClass = get.getBraceClass()
+  /** Register schema + styles during PreInit. */
+  installSchemaAndStyles = () => {
+    this.editor.schema.addValidElements('span[class|contenteditable|data-mt-val|data-mt-uid]')
+    const tokenClass = this.options.getTokenClass()
+    const braceClass = this.options.getBraceClass()
+    const activeClass = this.options.getActiveClass()
+    this.editor.contentStyles.push(
+      `.${tokenClass} .${braceClass}{color:#16a34a;font-weight:400;}`,
+      `.${tokenClass}.${activeClass}{outline:3px solid rgba(0,125,126,.75);}`
+    )
+  }
+
+  /** Load tokens from TinyMCE options into state (call on PreInit). */
+  refreshTokensFromOptions = () => { this.state.refreshFromOptions() }
+
+  /** Replace editor content with tokenized version after token set changes. */
+  retokenizeEditorContent = () => {
+    const html = this.editor.getContent({ format: 'html' })
+    const replaced = this.replaceDelimitersWithTokens(html)
+    this.editor.setContent(replaced)
+    this.migrateOldTokens()
+  }
+
+  /** Return menu items built from current groups. */
+  getMenuItems = () => this.#buildMenuItems(this.state.groupedTokens)
+
+  /** Insert tag by raw value (public convenience). */
+  insertByValue = (value) => {
+    const tag = this.state.valueMap.get(String(value))
+    this.insertTag(tag)
+  }
+
+  /**
+   * Update token set at runtime.
+   * @param {Array} data
+   */
+  setTokens = (data) => { this.state.setTokens(data) }
+
+  /**
+   * Autocomplete — returns [{ text, value }] for UI autocompleter.
+   * @param {string} pattern
+   * @param {number} [maxResults]
+   */
+  autocomplete = (pattern, maxResults) => {
+    const q = (pattern || '').toLowerCase()
+    const list = this.state.flatTokens
+    const filtered = q
+      ? list.filter(t => (t.title || t.value).toLowerCase().includes(q) || t.value.toLowerCase().includes(q))
+      : list.slice()
+    const cap = Math.min(
+      typeof maxResults === 'number' ? maxResults : this.options.getMaxSuggestions(),
+      filtered.length
+    )
+    return filtered.slice(0, cap).map(t => ({ text: t.title || t.value, value: t.value }))
+  }
+
+  /**
+   * For tests and rare cases where callers need lists without state internals.
+   */
+  getTagValues = () => Array.from(this.state.valueMap.keys())
+
+  // ───────────────────────────────────────────────────────────────────────────────
+  // Content/DOM transforms
+  // ───────────────────────────────────────────────────────────────────────────────
+
+  #displayText (tag) { return this.options.getDisplayMode() === 'value' ? tag.value : (tag.title || tag.value) }
+
+  createTokenElement (tag, uid) {
+    const doc = this.editor.getDoc()
+    const el = doc.createElement('span')
+    el.setAttribute('class', this.options.getTokenClass())
+    el.setAttribute('data-mt-val', tag.value)
+    el.setAttribute('data-mt-uid', String(uid))
+    el.setAttribute('contenteditable', 'false')
+
+    const prefix = doc.createElement('span')
+    prefix.setAttribute('class', this.options.getBraceClass())
+    prefix.textContent = this.options.getPrefix()
+
+    const textNode = doc.createTextNode(this.#displayText(tag))
+
+    const suffix = doc.createElement('span')
+    suffix.setAttribute('class', this.options.getBraceClass())
+    suffix.textContent = this.options.getSuffix()
+
+    el.append(prefix, textNode, suffix)
+
+    return el
+  }
+
+  toSpanHTML (tag, uid) {
+    const tokenClass = this.options.getTokenClass()
+    const braceClass = this.options.getBraceClass()
     const escapedValue = attrEscape(tag.value)
-    const uidAttribute = uid ? ` data-mt-uid="${String(uid)}"` : ''
-    if (get.showBraces()) {
-      return `<span class="${tokenClass}" data-mt-val="${escapedValue}"${uidAttribute} contenteditable="false">` +
-             `<span class="${braceClass}">${editor.dom.encode(get.getPrefix())}</span>` +
-             `${editor.dom.encode(displayText(tag))}` +
-             `<span class="${braceClass}">${editor.dom.encode(get.getSuffix())}</span>` +
+    const uidAttr = uid ? ` data-mt-uid="${String(uid)}"` : ''
+
+    return `<span class="${tokenClass}" data-mt-val="${escapedValue}"${uidAttr} contenteditable="false">` +
+             `<span class="${braceClass}">${this.editor.dom.encode(this.options.getPrefix())}</span>` +
+             `${this.editor.dom.encode(this.#displayText(tag))}` +
+             `<span class="${braceClass}">${this.editor.dom.encode(this.options.getSuffix())}</span>` +
              '</span>'
-    }
-    return `<span class="${tokenClass}" data-mt-val="${escapedValue}"${uidAttribute} contenteditable="false">${editor.dom.encode(displayText(tag))}</span>`
   }
 
-  const clearActiveTokens = () => {
-    const bodyElement = editor.getBody()
-    const tokenClass = get.getTokenClass()
-    const activeClass = get.getActiveClass()
-    bodyElement.querySelectorAll(`span.${tokenClass}.${activeClass}`).forEach((node) => node.classList.remove(activeClass))
+  clearActiveTokens () {
+    const body = this.editor.getBody()
+    const tokenClass = this.options.getTokenClass()
+    const active = this.options.getActiveClass()
+    body.querySelectorAll(`span.${tokenClass}.${active}`).forEach((n) => n.classList.remove(active))
   }
 
-  const activateToken = (tokenElement) => {
-    clearActiveTokens()
-    tokenElement.classList.add(get.getActiveClass())
-    editor.selection.select(tokenElement)
-    editor.selection.collapse(false)
+  activateToken (tokenEl) {
+    this.clearActiveTokens()
+    tokenEl.classList.add(this.options.getActiveClass())
+    this.editor.selection.select(tokenEl)
+    this.editor.selection.collapse(false)
   }
 
-  const insertTag = (tag) => {
-    editor.undoManager.transact(() => {
-      const uid = state.nextUid()
-      const element = createTokenElement(tag, uid)
-      editor.selection.setNode(element)
+  insertTag = (tag) => {
+    this.editor.undoManager.transact(() => {
+      const uid = this.state.nextUid()
+      const el = this.createTokenElement(tag, uid)
+      this.editor.selection.setNode(el)
+      if (this.options.highlightOnInsert()) this.activateToken(el)
     })
   }
 
-  const buildMenuItems = (items) => {
-    if (!Array.isArray(items) || !items.length) {
-      return [{ type: 'menuitem', text: 'No tags', enabled: false }]
-    }
-    return items.map((item) => {
-      if (Array.isArray(item.menu)) {
-        return {
-          type: 'nestedmenuitem',
-          text: item.title || '',
-          getSubmenuItems: () => buildMenuItems(item.menu),
-        }
-      }
-      return {
-        type: 'menuitem',
-        text: item.title || item.value,
-        onAction: () => insertTag({ title: item.title || item.value, value: item.value }),
-      }
+  #buildMenuItems (items) {
+    if (!Array.isArray(items) || !items.length) return [{ type: 'menuitem', text: 'No tags', enabled: false }]
+    return items.map((item) => Array.isArray(item.menu)
+      ? { type: 'nestedmenuitem', text: item.title || '', getSubmenuItems: () => this.#buildMenuItems(item.menu) }
+      : { type: 'menuitem', text: item.title || item.value, onAction: () => this.insertTag({ title: item.title || item.value, value: item.value }) }
+    )
+  }
+
+  /**
+ * Convert token `<span>` markup back to delimited text (`{{ value }}`).
+ * @param {string} html
+ * @returns {string}
+ */
+
+  replaceTokensWithDelimiters (html) {
+    const doc = document.implementation.createHTMLDocument('')
+    const container = doc.createElement('div')
+    container.innerHTML = html
+    const tokenClass = this.options.getTokenClass()
+    const pre = this.options.getPrefix()
+    const suf = this.options.getSuffix()
+    container.querySelectorAll(`span.${tokenClass}[data-mt-val]`).forEach((node) => {
+      const v = node.getAttribute('data-mt-val') || ''
+      node.replaceWith(doc.createTextNode(pre + v + suf))
+    })
+    return container.innerHTML
+  }
+
+  /**
+ * Convert delimited text (`{{ value }}`) to token `<span>` markup where possible.
+ * Unknown tags are preserved as-is when `keepUnknown` is true.
+ * @param {string} html
+ * @returns {string}
+ */
+
+  replaceDelimitersWithTokens (html) {
+    const pre = this.options.getPrefix()
+    const suf = this.options.getSuffix()
+    // IMPORTANT: double-escape \\s and \\S when building a RegExp from a string
+    const re = new RegExp(`${escapeForRegex(pre)}([\\s\\S]*?)${escapeForRegex(suf)}`, 'g')
+    return html.replace(re, (match, inner) => {
+      const tag = this.state.valueMap.get(String(inner))
+      return tag ? this.toSpanHTML(tag) : match
     })
   }
 
-  const replaceTokensWithDelimiters = (html) => {
-    const workingDocument = document.implementation.createHTMLDocument('')
-    const containerElement = workingDocument.createElement('div')
-    containerElement.innerHTML = html
-    const tokenClass = get.getTokenClass()
-    const prefixText = get.getPrefix()
-    const suffixText = get.getSuffix()
-    containerElement.querySelectorAll(`span.${tokenClass}[data-mt-val]`).forEach((node) => {
-      const valueAttr = node.getAttribute('data-mt-val') || ''
-      node.replaceWith(workingDocument.createTextNode(prefixText + valueAttr + suffixText))
-    })
-    return containerElement.innerHTML
-  }
+  upgradeRawUnderCaret = () => {
+    const rng = this.editor.selection?.getRng()
+    const start = rng?.startContainer
 
-  const replaceDelimitersWithTokens = (html) => {
-    const prefixText = get.getPrefix()
-    const suffixText = get.getSuffix()
-    const genericPattern = new RegExp(`${escapeForRegex(prefixText)}([\\s\\S]*?)${escapeForRegex(suffixText)}`, 'g')
-    return html.replace(genericPattern, (match, valueInsideDelimiters) => {
-      const tag = state.map.get(String(valueInsideDelimiters))
-      return tag ? toSpanHTML(tag) : match
-    })
-  }
-
-  const upgradeRawUnderCaret = () => {
-    const selectionRange = editor.selection?.getRng()
-    const start = selectionRange.startContainer
-
-    const textNode =
-      start?.nodeType === Node.TEXT_NODE
-        ? start
-        : [...(start?.childNodes ?? [])].find(n => n.nodeType === Node.TEXT_NODE)
+    const textNode = start?.nodeType === Node.TEXT_NODE
+      ? start
+      : [...(start?.childNodes ?? [])].find(n => n.nodeType === Node.TEXT_NODE)
 
     if (!textNode) return false
 
-    const prefixText = get.getPrefix()
-    const suffixText = get.getSuffix()
-    const delimiterRegex = new RegExp(`${escapeForRegex(prefixText)}([\\s\\S]*?)${escapeForRegex(suffixText)}`)
-    const fullText = textNode.nodeValue
-    const match = delimiterRegex.exec(fullText)
+    const pre = this.options.getPrefix()
+    const suf = this.options.getSuffix()
+    const re = new RegExp(`${escapeForRegex(pre)}([\\s\\S]*?)${escapeForRegex(suf)}`)
+    const full = textNode.nodeValue
+    const match = re.exec(full)
     if (!match) return false
 
-    const valueInsideDelimiters = String(match[1])
-    const tag = state.map.get(valueInsideDelimiters)
+    const inner = String(match[1])
+    const tag = this.state.valueMap.get(inner)
     if (!tag) return false
 
-    editor.undoManager.transact(() => {
-      const textBefore = fullText.slice(0, match.index)
-      const textAfter = fullText.slice(match.index + match[0].length)
-      const parentNode = textNode.parentNode
-      const uid = state.nextUid()
-      const tokenElement = createTokenElement(tag, uid)
-      if (textBefore) parentNode.insertBefore(editor.getDoc().createTextNode(textBefore), textNode)
-      parentNode.insertBefore(tokenElement, textNode)
-      if (textAfter) parentNode.insertBefore(editor.getDoc().createTextNode(textAfter), textNode)
-      parentNode.removeChild(textNode)
-      activateToken(tokenElement)
+    this.editor.undoManager.transact(() => {
+      const before = full.slice(0, match.index)
+      const after = full.slice(match.index + match[0].length)
+      const parent = textNode.parentNode
+      const uid = this.state.nextUid()
+      const tokenEl = this.createTokenElement(tag, uid)
+      if (before) parent.insertBefore(this.editor.getDoc().createTextNode(before), textNode)
+      parent.insertBefore(tokenEl, textNode)
+      if (after) parent.insertBefore(this.editor.getDoc().createTextNode(after), textNode)
+      parent.removeChild(textNode)
+      this.activateToken(tokenEl)
     })
     return true
   }
 
-  const migrateOldTokens = () => {
-    const bodyElement = editor.getBody()
-    if (!bodyElement) return
-    const tokenClass = get.getTokenClass()
-    const braceClass = get.getBraceClass()
-    bodyElement.querySelectorAll(`span.${tokenClass}[data-mt-val]`).forEach((node) => {
+  migrateOldTokens = () => {
+    const body = this.editor.getBody()
+    if (!body) return
+    const tokenClass = this.options.getTokenClass()
+    const braceClass = this.options.getBraceClass()
+    body.querySelectorAll(`span.${tokenClass}[data-mt-val]`).forEach((node) => {
       if (node.querySelector(`span.${braceClass}`)) return
-      const valueAttr = node.getAttribute('data-mt-val') || ''
-      const tag = state.map.get(valueAttr) || { title: valueAttr, value: valueAttr }
-      const uid = state.nextUid()
-      const newTokenElement = createTokenElement(tag, uid)
-      node.replaceWith(newTokenElement)
+      const v = node.getAttribute('data-mt-val') || ''
+      const tag = this.state.valueMap.get(v) || { title: v, value: v }
+      const uid = this.state.nextUid()
+      const upgraded = this.createTokenElement(tag, uid)
+      node.replaceWith(upgraded)
     })
   }
 
-  const transformInitialContentOnce = () => {
-    if (state.didInitPass) return
-    state.didInitPass = true
-    const html = editor.getContent({ format: 'html' })
-    const replaced = replaceDelimitersWithTokens(html)
-    if (replaced !== html) editor.setContent(replaced)
-    migrateOldTokens()
+  transformInitialContentOnce = () => {
+    if (this.state.didInitPass) return
+    this.state.didInitPass = true
+    const html = this.editor.getContent({ format: 'html' })
+    const replaced = this.replaceDelimitersWithTokens(html)
+    if (replaced !== html) this.editor.setContent(replaced)
+    this.migrateOldTokens()
   }
 
-  const getTokenAncestor = (node) => {
-    const tokenClass = get.getTokenClass()
-    return editor.dom.getParent(node, (candidate) => candidate && candidate.nodeType === 1 && editor.dom.hasClass(candidate, tokenClass))
+  getTokenAncestor (node) {
+    const tokenClass = this.options.getTokenClass()
+    return this.editor.dom.getParent(node, (cand) => cand && cand.nodeType === 1 && this.editor.dom.hasClass(cand, tokenClass))
   }
 
-  const onBodyClick = (event) => {
-    const tokenClass = get.getTokenClass()
-    const tokenElement = editor.dom.getParent(event.target, (candidate) => candidate && candidate.nodeType === 1 && editor.dom.hasClass(candidate, tokenClass))
-    if (tokenElement) {
+  /**
+ * Handle body clicks to activate tokens, or upgrade raw `{{ … }}` under caret.
+ * @param {MouseEvent} event
+ * @returns {void}
+ */
+
+  onBodyClick = (event) => {
+    const tokenClass = this.options.getTokenClass()
+    const tokenEl = this.editor.dom.getParent(event.target, (cand) => cand && cand.nodeType === 1 && this.editor.dom.hasClass(cand, tokenClass))
+    if (tokenEl) {
       event.preventDefault()
-      activateToken(tokenElement)
+      this.activateToken(tokenEl)
       return
     }
-    if (upgradeRawUnderCaret()) return
-    clearActiveTokens()
-  }
-
-  return {
-    createTokenElement,
-    toSpanHTML,
-    insertTag,
-    buildMenuItems,
-    replaceTokensWithDelimiters,
-    replaceDelimitersWithTokens,
-    upgradeRawUnderCaret,
-    migrateOldTokens,
-    transformInitialContentOnce,
-    clearActiveTokens,
-    activateToken,
-    getTokenAncestor,
-    onBodyClick,
+    if (this.upgradeRawUnderCaret()) return
+    this.clearActiveTokens()
   }
 }

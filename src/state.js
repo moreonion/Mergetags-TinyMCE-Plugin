@@ -1,61 +1,81 @@
-const normalizeGroups = (input) => {
-  if (!Array.isArray(input)) return []
-  return input
-    .map((item) => {
-      const groupItems = item.menu || item.items
-      if (Array.isArray(groupItems)) return { title: String(item.title || ''), menu: normalizeGroups(groupItems) }
-      if (typeof item.value !== 'undefined') return { title: String(item.title || item.value), value: String(item.value) }
-      return null
-    })
-    .filter(Boolean)
-}
-
-const flatten = (items, accumulator = []) => {
-  for (const item of items) {
-    if (Array.isArray(item.menu)) flatten(item.menu, accumulator)
-    else if (typeof item.value !== 'undefined') accumulator.push({ title: String(item.title || item.value), value: String(item.value) })
-  }
-  return accumulator
-}
-
-export const createState = (editor) => {
-  let groupedTokens = []
-  let flat = []
-  let map = new Map()
-  let uidCounter = 0
-  let didInitPass = false
-
-  const rebuildIndex = () => {
-    flat = flatten(groupedTokens, [])
-    map = new Map(flat.map((token) => [token.value, token]))
+export default class State {
+  /**
+   * @param {import('../settings/Options.js').Options} options
+   */
+  constructor (options) {
+    this.options = options
+    this.groupedTokens = []
+    this.flatTokens = []
+    this.valueMap = new Map()
+    this.uidCounter = 0
+    this._didInitPass = false
   }
 
-  const refreshFromOptions = () => {
-    const fromList = editor.options.get('mergetags_list')
-    groupedTokens = normalizeGroups(fromList)
-    rebuildIndex()
+  /**
+ * Normalize the configured token groups into a sane structure.
+ * @param {Array<object>} input
+ * @returns {Array<object>} Normalized groups.
+ */
+
+  static normalizeGroups (input) {
+    if (!Array.isArray(input)) return []
+    return input
+      .map((item) => {
+        const groupItems = item.menu || item.items
+        if (Array.isArray(groupItems)) return { title: String(item.title || ''), menu: State.normalizeGroups(groupItems) }
+        if (typeof item.value !== 'undefined') return { title: String(item.title || item.value), value: String(item.value) }
+        return null
+      })
+      .filter(Boolean)
   }
 
-  const setTokens = (data) => {
-    groupedTokens = normalizeGroups(data || [])
-    rebuildIndex()
+  static flatten (items, acc = []) {
+    for (const item of items) {
+      if (Array.isArray(item.menu)) State.flatten(item.menu, acc)
+      else if (typeof item.value !== 'undefined') acc.push({ title: String(item.title || item.value), value: String(item.value) })
+    }
+    return acc
   }
 
-  const nextUid = () => {
-    uidCounter += 1
-    return uidCounter.toString(36)
+  rebuildIndex () {
+    this.flatTokens = State.flatten(this.groupedTokens, [])
+    this.valueMap = new Map(this.flatTokens.map((t) => [t.value, t]))
   }
 
-  return {
-    get grouped () { return groupedTokens },
-    get flat () { return flat },
-    get map () { return map },
-    get didInitPass () { return didInitPass },
-    set didInitPass (value) { didInitPass = !!value },
-
-    rebuildIndex,
-    refreshFromOptions,
-    setTokens,
-    nextUid,
+  refreshFromOptions = () => {
+    const list = this.options.getList()
+    this.groupedTokens = State.normalizeGroups(list)
+    this.rebuildIndex()
   }
+
+  /**
+ * Replace the current token groups and rebuild indexes.
+ * @param {Array<object>} data
+ * @returns {void}
+ */
+
+  setTokens = (data) => {
+    this.groupedTokens = State.normalizeGroups(data || [])
+    this.rebuildIndex()
+  }
+
+  /**
+ * Generate the next unique id for token instances.
+ * @returns {string}
+ */
+
+  nextUid = () => {
+    this.uidCounter += 1
+    return this.uidCounter.toString(36)
+  }
+  /** @returns {boolean} Whether initial transformation has been performed. */
+
+  get didInitPass () { return this._didInitPass }
+
+  /**
+ * Mark whether the initial transformation pass has been performed.
+ * @param {boolean} v
+ */
+
+  set didInitPass (v) { this._didInitPass = !!v }
 }

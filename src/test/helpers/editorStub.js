@@ -40,6 +40,7 @@ export const createEditorStub = () => {
       registry: {
         addIcon: function (name, svg) { icons[name] = svg },
         addMenuButton: function (name, cfg) { menuButtons[name] = cfg },
+        addNestedMenuItem: function (name, cfg) { menuButtons[name] = cfg },
         addAutocompleter: function (name, cfg) { autocompleters[name] = cfg }
       }
     },

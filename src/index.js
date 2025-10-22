@@ -1,29 +1,40 @@
-import { bindEvents, registerCommands } from './events.js'
-import { getters, registerOptions } from './settings.js'
-import { createState } from './state.js'
-import { makeCore } from './core.js'
-import { registerUI } from './ui.js'
+import Core from './core.js'
+import Event from './event.js'
+import Commands from './commands.js'
+import Ui from './ui.js'
+import Options from './options.js'
 
-const registerMergetags = (tinymceInstance) => {
-  tinymceInstance.PluginManager.add('mergetags', (editor) => {
-    registerOptions(editor)
-    const get = getters(editor)
-    const state = createState(editor)
-    const core = makeCore(editor, get, state)
+/**
+ * Register plugin with a TinyMCE instance.
+ * Single public entry; internals are encapsulated behind `Core`.
+ */
+const registerMergetags = (tinymce) => {
+  tinymce.PluginManager.add('mergetags', (editor) => {
+    // Options (needed for PreInit)
+    const options = new Options(editor)
+    options.register()
 
-    registerUI(editor, get, state, core)
-    bindEvents(editor, get, state, core)
-    registerCommands(editor, state, core)
+    // Core (owns state and all transforms)
+    const core = new Core(editor, options)
 
-    return {
-      getMetadata: () => ({ name: 'Merge Tags (Self-hosted)', version: '1.0.0' }),
-    }
+    // Thin integration layers (depend only on editor + core)
+    const ui = new Ui(editor, core)
+    const events = new Event(editor, core)
+    const commands = new Commands(editor, core)
+
+    // Wire up
+    ui.mount()
+    events.bindAll()
+    commands.register()
+
+    return { getMetadata: () => ({ name: 'Merge Tags (Self-hosted)', version: '1.0.0' }) }
   })
 }
 
-(() => {
-  const tinymceGlobal = (typeof window !== 'undefined' && window.tinymce) ? window.tinymce : null
-  if (tinymceGlobal) registerMergetags(tinymceGlobal)
+// Auto-register if a global tinymce exists
+;(() => {
+  const t = (typeof window !== 'undefined' && window.tinymce) ? window.tinymce : null
+  if (t) registerMergetags(t)
 })()
 
 export { registerMergetags }
