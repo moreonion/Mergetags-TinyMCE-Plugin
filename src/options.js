@@ -1,12 +1,9 @@
 export default class Options {
-  /**
-   * @param {import('tinymce').Editor} editor
-   */
   constructor (editor) {
     this.editor = editor
   }
 
-  /** Register all plugin options (call during plugin init / PreInit). */
+  // Register all plugin options
   register () {
     const { register } = this.editor.options
     register('mergetags_list', { processor: 'array', default: [] })
@@ -21,13 +18,13 @@ export default class Options {
     register('mergetags_keep_unknown', { processor: 'boolean', default: true })
   }
 
-  /** @returns {string} */ getPrefix () { return this.editor.options.get('mergetags_prefix') }
-  /** @returns {string} */ getSuffix () { return this.editor.options.get('mergetags_suffix') }
-  /** @returns {string} */ getTokenClass () { return this.editor.options.get('mergetags_token_class') }
-  /** @returns {string} */ getBraceClass () { return this.editor.options.get('mergetags_brace_class') }
-  /** @returns {string} */ getActiveClass () { return this.editor.options.get('mergetags_highlight_class') }
-  /** @returns {string} */ getDisplayMode () { return this.editor.options.get('mergetags_display') }
-  /** @returns {boolean} */ highlightOnInsert () { return !!this.editor.options.get('mergetags_highlight_on_insert') }
-  /** @returns {boolean} */ keepUnknown () { return !!this.editor.options.get('mergetags_keep_unknown') }
-  /** @returns {Array} */ getList () { return this.editor.options.get('mergetags_list') }
+  getPrefix () { return this.editor.options.get('mergetags_prefix') }
+  getSuffix () { return this.editor.options.get('mergetags_suffix') }
+  getTokenClass () { return this.editor.options.get('mergetags_token_class') }
+  getBraceClass () { return this.editor.options.get('mergetags_brace_class') }
+  getActiveClass () { return this.editor.options.get('mergetags_highlight_class') }
+  getDisplayMode () { return this.editor.options.get('mergetags_display') }
+  highlightOnInsert () { return !!this.editor.options.get('mergetags_highlight_on_insert') }
+  keepUnknown () { return !!this.editor.options.get('mergetags_keep_unknown') }
+  getList () { return this.editor.options.get('mergetags_list') }
 }

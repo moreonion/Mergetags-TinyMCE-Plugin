@@ -1,6 +1,5 @@
 import Core from './core.js'
 import Event from './event.js'
-import Commands from './commands.js'
 import Ui from './ui.js'
 import Options from './options.js'
 
@@ -20,12 +19,10 @@ const registerMergetags = (tinymce) => {
     // Thin integration layers (depend only on editor + core)
     const ui = new Ui(editor, core)
     const events = new Event(editor, core)
-    const commands = new Commands(editor, core)
 
     // Wire up
     ui.mount()
     events.bindAll()
-    commands.register()
 
     return { getMetadata: () => ({ name: 'Merge Tags (Self-hosted)', version: '1.0.0' }) }
   })
