@@ -1,4 +1,4 @@
-export class TokenStore {
+class TokenStore {
   #groups = []
   #flat = []
   #byValue = new Map()
@@ -48,9 +48,7 @@ export class TokenStore {
 
   // Pulls the list from options (kept here to avoid leaking normalize logic); @param {{ getList: () => any[] }} options
   refreshFromOptions (options) {
-    const list = options?.getList?.() ?? []
-    this.#groups = TokenStore.normalizeGroups(list)
-    this.#rebuild()
+    this.setTokens(options?.getList?.())
   }
 
   // Recompute flat + maps from groups
@@ -59,15 +57,22 @@ export class TokenStore {
     this.#byValue = new Map(this.#flat.map((t) => [t.value, t]))
   }
 
+  autocomplete (pattern, maxResults) {
+    const q = (pattern || '').toLowerCase()
+    const list = this.#flat
+    const filtered = q
+      ? list.filter(t => (t.title || t.value).toLowerCase().includes(q) || t.value.toLowerCase().includes(q))
+      : list.slice()
+    const cap = Math.min(
+      typeof maxResults === 'number' ? maxResults : 10,
+      filtered.length
+    )
+    return filtered.slice(0, cap).map(t => ({ text: t.title || t.value, value: t.value }))
+  }
+
   getGroups () { return this.#groups }
 
-  getFlat () { return this.#flat }
-
   getByValue (value) { return this.#byValue.get(String(value)) }
-
-  hasValue (value) { return this.#byValue.has(String(value)) }
-
-  values () { return this.#byValue.keys() }
 }
 
 export default TokenStore

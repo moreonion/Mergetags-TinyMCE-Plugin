@@ -1,4 +1,4 @@
-import { TokenStore } from './tokens/tokenStore.js'
+import TokenStore from './tokens/tokenStore.js'
 
 export default class State {
   constructor (options) {

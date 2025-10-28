@@ -2,6 +2,7 @@ export default class Ui {
   constructor (editor, core) {
     this.editor = editor
     this.core = core
+    this.tokens = core.state.tokens
   }
 
   // Register TinyMCE UI: icon, menu button and autocompleter
@@ -26,7 +27,7 @@ export default class Ui {
       minChars: 0,
       columns: 1,
       matches: () => true,
-      fetch: (pattern, maxResults) => Promise.resolve(this.core.autocomplete(pattern, maxResults)),
+      fetch: (pattern, maxResults) => Promise.resolve(this.tokens.autocomplete(pattern, maxResults)),
       onAction: (api, selectionRange, value) => {
         if (selectionRange) this.editor.selection.setRng(selectionRange)
         this.core.insertByValue(String(value))

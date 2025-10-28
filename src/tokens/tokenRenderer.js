@@ -1,75 +1,60 @@
-import { attrEscape } from '../utils/escape.js'
+// TokenRenderer - Responsible for creating and rendering token DOM elements
+// token HTML/element creation, display text logic
+import { escapeForRegex } from '../utils/escape.js'
 
-/**
- * TokenRenderer - Responsible for creating and rendering token DOM elements.
- * Owns: token HTML/element creation, display text logic.
- */
 export default class TokenRenderer {
-  /**
-   * @param {import('tinymce').Editor} editor
-   * @param {import('../options.js').default} options
-   * @param {import('./tokenFormat.js').default} format
-   */
-  constructor (editor, options, format) {
+  constructor (editor, options) {
     this.editor = editor
-    this.options = options
-    this.format = format
+    this.displayMode = options.getDisplayMode()
+    this.tokenClass = options.getTokenClass()
+    this.braceClass = options.getBraceClass()
+    this.prefix = options.getPrefix()
+    this.suffix = options.getSuffix()
   }
 
-  /**
-   * Get display text based on current display mode.
-   * @param {{ title?: string, value: string }} tag
-   * @returns {string}
-   */
+  // Get display text based on current display mode
   #getDisplayText (tag) {
-    return this.options.getDisplayMode() === 'value'
+    return this.displayMode === 'value'
       ? tag.value
       : (tag.title || tag.value)
   }
 
-  /**
-   * Create a token DOM element.
-   * @param {{ title?: string, value: string }} tag
-   * @param {string} uid
-   * @returns {HTMLSpanElement}
-   */
-  createTokenElement (tag, uid) {
-    const doc = this.editor.getDoc()
-    const el = doc.createElement('span')
-    el.setAttribute('class', this.options.getTokenClass())
+  // Create a token DOM element
+  createTokenElement (tag) {
+    const el = document.createElement('span')
+    el.setAttribute('class', this.tokenClass)
     el.setAttribute('data-mt-val', tag.value)
     el.setAttribute('contenteditable', 'false')
 
-    const prefix = doc.createElement('span')
-    prefix.setAttribute('class', this.options.getBraceClass())
-    prefix.textContent = this.format.getPrefix()
+    const prefix = document.createElement('span')
+    prefix.setAttribute('class', this.braceClass)
+    prefix.textContent = this.prefix
 
-    const textNode = doc.createTextNode(this.#getDisplayText(tag))
+    const textNode = document.createTextNode(this.#getDisplayText(tag))
 
-    const suffix = doc.createElement('span')
-    suffix.setAttribute('class', this.options.getBraceClass())
-    suffix.textContent = this.format.getSuffix()
+    const suffix = document.createElement('span')
+    suffix.setAttribute('class', this.braceClass)
+    suffix.textContent = this.suffix
 
     el.append(prefix, textNode, suffix)
 
     return el
   }
 
-  /**
-   * Create token HTML string.
-   * @param {{ title?: string, value: string }} tag
-   * @param {string} [uid]
-   * @returns {string}
-   */
+  // Create token HTML string
   toSpanHTML (tag, uid) {
-    const tokenClass = this.options.getTokenClass()
-    const braceClass = this.options.getBraceClass()
-    const escapedValue = attrEscape(tag.value)
+    return this.createTokenElement(tag, uid).outerHTML
+  }
 
-    return `<span class="${tokenClass}" data-mt-val="${escapedValue}" contenteditable="false">` +
-             `<span class="${braceClass}">${this.editor.dom.encode(this.format.getPrefix())}</span>` +
-             `${this.editor.dom.encode(this.#getDisplayText(tag))}` +
-             `<span class="${braceClass}">${this.editor.dom.encode(this.format.getSuffix())}</span>` +
-             '</span>'
+  // Build a regex that matches {{ any-content }} between current prefix/suffix; @param {string} flags e.g. 'g', 'gi'
+  getDelimiterRegex (flags = 'g') {
+    const prefix = escapeForRegex(this.prefix)
+    const suffix = escapeForRegex(this.suffix)
+    return new RegExp(`${prefix}([\\s\\S]*?)${suffix}`, flags)
+  }
+
+  // Wrap a raw value with delimiters, e.g. -> {{ value }}
+  wrap (value) {
+    return `${this.prefix}${String(value)}${this.suffix}`
   }
 }

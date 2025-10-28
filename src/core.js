@@ -1,5 +1,4 @@
 import State from './state.js'
-import TokenFormat from './tokens/tokenFormat.js'
 import TokenRenderer from './tokens/tokenRenderer.js'
 import ContentTransformer from './tokens/contentTransformer.js'
 import TokenInteractions from './tokens/tokenInteractions.js'
@@ -14,16 +13,14 @@ export default class Core {
     this.editor = editor
     this.options = options
     this.state = new State(options)
-    this.format = new TokenFormat(options)
 
-    this.renderer = new TokenRenderer(editor, options, this.format)
-    this.transformer = new ContentTransformer(editor, options, this.renderer, this.state.tokens, this.format)
+    this.renderer = new TokenRenderer(editor, options)
+    this.transformer = new ContentTransformer(editor, options, this.renderer, this.state.tokens)
     this.interactions = new TokenInteractions(
       editor,
       options,
       this.renderer,
       this.state.tokens,
-      this.format,
     )
 
     // Ensure tokens are ready on first load
@@ -55,20 +52,6 @@ export default class Core {
   // Update token set at runtime
   setTokens (data) {
     this.state.setTokens(data)
-  }
-
-  // Autocomplete — returns [{ text, value }] for UI autocompleter.
-  autocomplete (pattern, maxResults) {
-    const q = (pattern || '').toLowerCase()
-    const list = this.state.tokens.getFlat()
-    const filtered = q
-      ? list.filter(t => (t.title || t.value).toLowerCase().includes(q) || t.value.toLowerCase().includes(q))
-      : list.slice()
-    const cap = Math.min(
-      typeof maxResults === 'number' ? maxResults : 10,
-      filtered.length
-    )
-    return filtered.slice(0, cap).map(t => ({ text: t.title || t.value, value: t.value }))
   }
 
   // Convert token `<span>` markup back to delimited text (`{{ value }}`)

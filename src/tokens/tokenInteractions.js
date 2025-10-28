@@ -1,11 +1,10 @@
 // TokenInteractions - Manages user interactions with tokens; owns insertion, activation, click handling, raw token upgrading
 export default class TokenInteractions {
-  constructor (editor, options, renderer, tokens, format) {
+  constructor (editor, options, renderer, tokens) {
     this.editor = editor
     this.options = options
     this.renderer = renderer
     this.tokens = tokens
-    this.format = format
   }
 
   // Clear active class from all tokens
@@ -58,7 +57,7 @@ export default class TokenInteractions {
 
     if (!textNode) return false
 
-    const re = this.format.getDelimiterRegex()
+    const re = this.renderer.getDelimiterRegex()
     const full = textNode.nodeValue
     const match = re.exec(full)
     if (!match) return false
@@ -79,10 +78,9 @@ export default class TokenInteractions {
     const textAfterMatch = fullText.slice(match.index + match[0].length)
     const parentNode = textNode.parentNode
     const tokenElement = this.renderer.createTokenElement(tag)
-    const editorDoc = this.editor.getDoc()
-    if (textBeforeMatch) parentNode.insertBefore(editorDoc.createTextNode(textBeforeMatch), textNode)
+    if (textBeforeMatch) parentNode.insertBefore(document.createTextNode(textBeforeMatch), textNode)
     parentNode.insertBefore(tokenElement, textNode)
-    if (textAfterMatch) parentNode.insertBefore(editorDoc.createTextNode(textAfterMatch), textNode)
+    if (textAfterMatch) parentNode.insertBefore(document.createTextNode(textAfterMatch), textNode)
     parentNode.removeChild(textNode)
     this.activateToken(tokenElement)
   }
