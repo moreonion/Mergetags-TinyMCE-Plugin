@@ -2,17 +2,12 @@ export default class Event {
   constructor (editor, core) {
     this.editor = editor
     this.core = core
-    this._bodyClickHandler = null
+    this.containerClickHandler = null
   }
 
   // Bind all editor event handlers (PreInit, Get/SetContent, click).
 
   bindAll () {
-    // Load tokens + install schema/styles early
-    this.editor.on('PreInit', () => {
-      this.core.installSchemaAndStyles()
-    })
-
     // Content transforms
     this.editor.on('GetContent', (e) => { e.content = this.core.replaceTokensWithDelimiters(e.content) })
     const inbound = (e) => { e.content = this.core.replaceDelimitersWithTokens(e.content) }
@@ -21,14 +16,14 @@ export default class Event {
 
     // Init / teardown
     this.editor.on('init', () => {
-      const body = this.editor.getBody()
-      this._bodyClickHandler = (ev) => this.core.onBodyClick(ev)
-      body.addEventListener('click', this._bodyClickHandler)
+      const container = this.editor.getContainer()
+      this.containerClickHandler = (ev) => this.core.onContainerClick(ev)
+      container.addEventListener('click', this.containerClickHandler)
     })
 
     this.editor.on('remove', () => {
-      const body = this.editor.getBody()
-      if (this._bodyClickHandler) body.removeEventListener('click', this._bodyClickHandler)
+      const container = this.editor.getContainer()
+      if (this.containerClickHandler) container.removeEventListener('click', this.containerClickHandler)
     })
   }
 }

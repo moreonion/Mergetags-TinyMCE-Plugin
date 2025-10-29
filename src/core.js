@@ -10,12 +10,9 @@ import TokenInteractions from './tokens/tokenInteractions.js'
  */
 export default class Core {
   constructor (editor, options) {
-    this.editor = editor
-    this.options = options
     this.state = new State(options)
-
-    this.renderer = new TokenRenderer(editor, options)
-    this.transformer = new ContentTransformer(editor, options, this.renderer, this.state.tokens)
+    this.renderer = new TokenRenderer(options)
+    this.transformer = new ContentTransformer(options, this.renderer, this.state.tokens)
     this.interactions = new TokenInteractions(
       editor,
       options,
@@ -27,24 +24,7 @@ export default class Core {
     this.state.refreshFromOptions()
   }
 
-  // Register schema + styles during PreInit
-  installSchemaAndStyles () {
-    this.editor.schema.addValidElements('span[class|contenteditable|data-mt-val]')
-    const tokenClass = this.options.getTokenClass()
-    const braceClass = this.options.getBraceClass()
-    const activeClass = this.options.getActiveClass()
-    this.editor.contentStyles.push(
-      `.${tokenClass} .${braceClass}{color:#16a34a;font-weight:400;}`,
-      `.${tokenClass}.${activeClass}{outline:3px solid rgba(0,125,126,.75);}`
-    )
-  }
-
-  // Return menu items built from current groups
-  getMenuItems () {
-    return this.#buildMenuItems(this.state.tokens.getGroups())
-  }
-
-  // Insert tag by raw value (public convenience)
+  // Insert tag by raw value
   insertByValue (value) {
     this.interactions.insertByValue(value)
   }
@@ -65,29 +45,7 @@ export default class Core {
   }
 
   // Handle body clicks to activate tokens, or upgrade raw `{{ … }}` under caret
-  onBodyClick (event) {
-    this.interactions.onBodyClick(event)
-  }
-
-  // Build menu items recursively from token groups
-  #buildMenuItems (items) {
-    if (!Array.isArray(items) || !items.length) {
-      return [{ type: 'menuitem', text: 'No tags', enabled: false }]
-    }
-    return items.map((item) => Array.isArray(item.menu)
-      ? {
-          type: 'nestedmenuitem',
-          text: item.title || '',
-          getSubmenuItems: () => this.#buildMenuItems(item.menu)
-        }
-      : {
-          type: 'menuitem',
-          text: item.title || item.value,
-          onAction: () => this.interactions.insertTag({
-            title: item.title || item.value,
-            value: item.value
-          })
-        }
-    )
+  onContainerClick (event) {
+    this.interactions.onContainerClick(event)
   }
 }

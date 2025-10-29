@@ -6,8 +6,13 @@ export const createEditorStub = () => {
   const menuButtons = {}
   const autocompleters = {}
 
+  // Create container and body (TinyMCE-like structure)
+  const container = document.createElement('div')
+  container.className = 'tinymce-container'
+
   const body = document.createElement('div')
   body.setAttribute('contenteditable', 'true')
+  container.appendChild(body)
 
   const selectionState = {
     currentRange: null,
@@ -101,6 +106,8 @@ export const createEditorStub = () => {
     _emit: function (name, payload) {
       (handlers.get(name) || []).forEach(function (fn) { fn(payload) })
     },
+
+    getContainer: function () { return container },
 
     getDoc: function () { return document },
     getBody: function () { return body },

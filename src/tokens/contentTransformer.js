@@ -1,29 +1,26 @@
 // ContentTransformer - Handles conversion between delimited text and token spans.
 // Owns: HTML content transformation, delimiter, token conversion
 export default class ContentTransformer {
-  constructor (editor, options, renderer, tokens) {
-    this.editor = editor
+  constructor (options, renderer, tokens) {
     this.tokenClass = options.getTokenClass()
     this.renderer = renderer
-    this.tokens = tokens
-    }
+    this.getByValue = tokens.getByValue.bind(tokens)
+  }
 
-  // Convert token `<span>` markup back to delimited text (`{{ value }}`) @param {string} htmlContent @returns {string}
-  replaceTokensWithDelimiters (htmlContent) {
+  replaceTokensWithDelimiters (html) {
     const container = document.createElement('div')
-    container.innerHTML = htmlContent
-    container.querySelectorAll(`span.${this.tokenClass}[data-mt-val]`).forEach((tokenElement) => {
-      const tokenValue = tokenElement.getAttribute('data-mt-val') || ''
-      tokenElement.replaceWith(document.createTextNode(this.renderer.wrap(tokenValue)))
-    })
+    container.innerHTML = html
+    for (const el of container.querySelectorAll(`span.${this.tokenClass}[data-mt-val]`)) {
+      const val = el.getAttribute('data-mt-val') || ''
+      el.replaceWith(document.createTextNode(this.renderer.wrap(val)))
+    }
     return container.innerHTML
   }
 
-  // Convert delimited text (`{{ value }}`) to token `<span>` markup where possible
-  replaceDelimitersWithTokens (htmlContent) {
-    const delimiterRegex = this.renderer.getDelimiterRegex('g')
-    return htmlContent.replace(delimiterRegex, (match, rawValue) => {
-      const token = this.tokens.getByValue(String(rawValue))
+  replaceDelimitersWithTokens (html) {
+    const re = this.renderer.getDelimiterRegex('g')
+    return html.replace(re, (match, rawValue) => {
+      const token = this.getByValue(String(rawValue))
       return token ? this.renderer.toSpanHTML(token) : match
     })
   }

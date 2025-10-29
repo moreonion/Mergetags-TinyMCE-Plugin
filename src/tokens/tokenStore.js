@@ -46,7 +46,7 @@ class TokenStore {
     this.#rebuild()
   }
 
-  // Pulls the list from options (kept here to avoid leaking normalize logic); @param {{ getList: () => any[] }} options
+  // Pulls the list from options (kept here to avoid leaking normalize logic)
   refreshFromOptions (options) {
     this.setTokens(options?.getList?.())
   }

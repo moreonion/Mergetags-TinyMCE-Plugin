@@ -3,8 +3,7 @@
 import { escapeForRegex } from '../utils/escape.js'
 
 export default class TokenRenderer {
-  constructor (editor, options) {
-    this.editor = editor
+  constructor (options) {
     this.displayMode = options.getDisplayMode()
     this.tokenClass = options.getTokenClass()
     this.braceClass = options.getBraceClass()
@@ -46,7 +45,7 @@ export default class TokenRenderer {
     return this.createTokenElement(tag, uid).outerHTML
   }
 
-  // Build a regex that matches {{ any-content }} between current prefix/suffix; @param {string} flags e.g. 'g', 'gi'
+  // Build a regex that matches {{ any-content }} between current prefix/suffix
   getDelimiterRegex (flags = 'g') {
     const prefix = escapeForRegex(this.prefix)
     const suffix = escapeForRegex(this.suffix)
