@@ -1,7 +1,8 @@
 import Core from './core.js'
-import Event from './event.js'
-import Ui from './ui.js'
 import Options from './options.js'
+import TokenInteractions from './tokens/tokenInteractions.js'
+import TokenRenderer from './tokens/tokenRenderer.js'
+import TokenStore from './tokens/tokenStore.js'
 
 /**
  * Register plugin with a TinyMCE instance.
@@ -9,22 +10,25 @@ import Options from './options.js'
  */
 const registerMergetags = (tinymce) => {
   tinymce.PluginManager.add('mergetags', (editor) => {
-    // Options (needed for PreInit)
-    const options = new Options(editor)
+    const options = new Options(editor.options)
     options.register()
 
-    // Core (owns state and all transforms)
-    const core = new Core(editor, options)
+    const tokens = new TokenStore()
+    tokens.refreshFromOptions(options)
 
-    // Thin integration layers (depend only on editor + core)
-    const ui = new Ui(editor, core)
-    const events = new Event(editor, core)
+    const renderer = new TokenRenderer(options)
+    const interactions = new TokenInteractions(
+      editor,
+      options,
+      renderer,
+      tokens,
+    )
 
-    // Wire up
-    ui.mount()
-    events.bindAll()
+    const core = new Core(editor, options, tokens, renderer, interactions)
+    core.mount()
+    core.bindAll()
 
-    return { getMetadata: () => ({ name: 'Merge Tags (Self-hosted)', version: '1.0.0' }) }
+    return { getMetadata: () => ({ name: 'Merge Tags', version: '1.0.0' }) }
   })
 }
 

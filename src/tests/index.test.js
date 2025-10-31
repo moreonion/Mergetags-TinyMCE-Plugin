@@ -15,6 +15,6 @@ describe('registerMergetags', () => {
     assert.ok(tinymce.PluginManager._plugins.mergetags)
     const api = tinymce.PluginManager._plugins.mergetags
     const meta = api.getMetadata()
-    assert.strictEqual(meta.name, 'Merge Tags (Self-hosted)')
+    assert.strictEqual(meta.name, 'Merge Tags')
   })
 })

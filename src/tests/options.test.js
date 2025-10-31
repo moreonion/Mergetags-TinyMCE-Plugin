@@ -5,7 +5,7 @@ import Options from '../options.js'
 describe('Options', () => {
   test('registers defaults and getters return expected values', () => {
     const editor = createEditorStub()
-    const options = new Options(editor)
+    const options = new Options(editor.options)
     options.register()
 
     assert.strictEqual(options.getPrefix(), '{{')
@@ -18,7 +18,7 @@ describe('Options', () => {
 
   test('respects custom options', () => {
     const editor = createEditorStub()
-    const options = new Options(editor)
+    const options = new Options(editor.options)
     options.register()
     editor.options.set('mergetags_prefix', '[[')
     editor.options.set('mergetags_suffix', ']]')

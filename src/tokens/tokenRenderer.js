@@ -56,4 +56,22 @@ export default class TokenRenderer {
   wrap (value) {
     return `${this.prefix}${String(value)}${this.suffix}`
   }
+
+  replaceTokensWithDelimiters (html) {
+    const container = document.createElement('div')
+    container.innerHTML = html
+    for (const el of container.querySelectorAll(`span.${this.tokenClass}[data-mt-val]`)) {
+      const val = el.getAttribute('data-mt-val') || ''
+      el.replaceWith(document.createTextNode(this.wrap(val)))
+    }
+    return container.innerHTML
+  }
+
+  replaceDelimitersWithTokens (html, tokens) {
+    const re = this.getDelimiterRegex('g')
+    return html.replace(re, (match, rawValue) => {
+      const token = tokens.getByValue(String(rawValue))
+      return token ? this.toSpanHTML(token) : match
+    })
+  }
 }

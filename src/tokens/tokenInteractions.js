@@ -4,8 +4,8 @@ export default class TokenInteractions {
     this.editor = editor
     this.tokenClass = options.getTokenClass()
     this.activeClass = options.getActiveClass()
-    this.createTokenElement = renderer.createTokenElement.bind(renderer)
-    this.getByValue = tokens.getByValue.bind(tokens)
+    this.renderer = renderer
+    this.tokens = tokens
   }
 
   // Clear active class from all tokens
@@ -27,27 +27,24 @@ export default class TokenInteractions {
   // Insert a token at current selection
   insertTag (tag) {
     this.editor.undoManager.transact(() => {
-      const el = this.createTokenElement(tag)
+      const el = this.renderer.createTokenElement(tag)
       this.editor.selection.setNode(el)
     })
   }
 
   // Insert tag by raw value (convenience method)
   insertByValue (value) {
-    const tag = this.getByValue(value)
-    if (tag) this.insertTag(tag)
+    const token = this.tokens.getByValue(value)
+    if (token) this.insertTag(token)
   }
 
   // Get token ancestor element for a given node
   getTokenAncestor (node) {
-    return this.editor.dom.getParent(
-      node,
-      cand => cand && cand.nodeType === 1 && this.editor.dom.hasClass(cand, this.tokenClass)
-    )
+    return node.closest('.' + this.tokenClass)
   }
 
   // Handle body clicks to activate tokens
-  onContainerClick (event) {
+  activateTokenOnClick (event) {
     const tokenEl = this.getTokenAncestor(event.target)
     if (!tokenEl) return this.clearActiveTokens()
     event.preventDefault()

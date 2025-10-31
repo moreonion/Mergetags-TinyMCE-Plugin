@@ -70,6 +70,27 @@ class TokenStore {
     return filtered.slice(0, cap).map(t => ({ text: t.title || t.value, value: t.value }))
   }
 
+  buildMenuItems = (interactions) => {
+    if (!Array.isArray(this.#groups) || !this.#groups.length) {
+      return [{ type: 'menuitem', text: 'No tags', enabled: false }]
+    }
+    return this.#groups.map((item) => Array.isArray(item.menu)
+      ? {
+          type: 'nestedmenuitem',
+          text: item.title || '',
+          getSubmenuItems: () => this.buildMenuItems(item.menu)
+        }
+      : {
+          type: 'menuitem',
+          text: item.title || item.value,
+          onAction: () => interactions.insertTag({
+            title: item.title || item.value,
+            value: item.value
+          })
+        }
+    )
+  }
+
   getGroups () { return this.#groups }
 
   getByValue (value) { return this.#byValue.get(String(value)) }

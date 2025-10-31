@@ -5,7 +5,7 @@ import { createEditorStub } from './helpers/editorStub.js'
 
 const setup = (over = {}) => {
   const editor = createEditorStub()
-  const options = new Options(editor)
+  const options = new Options(editor.options)
   options.register()
   if (over.prefix) editor.options.set('mergetags_prefix', over.prefix)
   if (over.suffix) editor.options.set('mergetags_suffix', over.suffix)

@@ -1,11 +1,11 @@
 export default class Options {
-  constructor (editor) {
-    this.editor = editor
+  constructor (editorOptions) {
+    this.editorOptions = editorOptions
   }
 
   // Register all plugin options
   register () {
-    const { register } = this.editor.options
+    const { register } = this.editorOptions
     register('mergetags_prefix', { processor: 'string', default: '{{' })
     register('mergetags_suffix', { processor: 'string', default: '}}' })
     register('mergetags_token_class', { processor: 'string', default: 'mce-mergetag' })
@@ -16,12 +16,12 @@ export default class Options {
     register('mergetags_list', { processor: 'array', default: [] })
   }
 
-  getPrefix () { return this.editor.options.get('mergetags_prefix') }
-  getSuffix () { return this.editor.options.get('mergetags_suffix') }
-  getTokenClass () { return this.editor.options.get('mergetags_token_class') }
-  getBraceClass () { return this.editor.options.get('mergetags_brace_class') }
-  getActiveClass () { return this.editor.options.get('mergetags_highlight_class') }
-  getDisplayMode () { return this.editor.options.get('mergetags_display') }
-  keepUnknown () { return !!this.editor.options.get('mergetags_keep_unknown') }
-  getList () { return this.editor.options.get('mergetags_list') }
+  getPrefix () { return this.editorOptions.get('mergetags_prefix') }
+  getSuffix () { return this.editorOptions.get('mergetags_suffix') }
+  getTokenClass () { return this.editorOptions.get('mergetags_token_class') }
+  getBraceClass () { return this.editorOptions.get('mergetags_brace_class') }
+  getActiveClass () { return this.editorOptions.get('mergetags_highlight_class') }
+  getDisplayMode () { return this.editorOptions.get('mergetags_display') }
+  keepUnknown () { return !!this.editorOptions.get('mergetags_keep_unknown') }
+  getList () { return this.editorOptions.get('mergetags_list') }
 }

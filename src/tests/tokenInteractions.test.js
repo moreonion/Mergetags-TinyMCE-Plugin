@@ -102,16 +102,16 @@ describe('TokenInteractions', () => {
     expect(after).toBeGreaterThan(before)
   })
 
-  it('onContainerClick activates token or clears if none', () => {
+  it('activateTokenOnClick activates token or clears if none', () => {
     const interactions = new TokenInteractions(editor, options, renderer, store)
     const target = document.querySelector('.mt-token')
     const ev = { target: target, preventDefault: vi.fn() }
-    interactions.onContainerClick(ev)
+    interactions.activateTokenOnClick(ev)
     expect(ev.preventDefault).toHaveBeenCalled()
     expect(target.classList.contains('active')).toBe(true)
 
     const none = { target: document.body, preventDefault: vi.fn() }
-    interactions.onContainerClick(none)
+    interactions.activateTokenOnClick(none)
     expect(document.querySelectorAll('.mt-token.active').length).toBe(0)
   })
 })
