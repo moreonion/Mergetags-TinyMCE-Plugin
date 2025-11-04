@@ -1,5 +1,4 @@
 build/
-dist/
 coverage/
 test-results.xml
 *-error.log*
