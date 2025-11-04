@@ -76,18 +76,26 @@ class TokenStore {
     }
     return this.#groups.map((item) => Array.isArray(item.menu)
       ? {
-          type: 'nestedmenuitem',
-          text: item.title || '',
-          getSubmenuItems: () => this.buildMenuItems(item.menu)
-        }
-      : {
+        type: 'nestedmenuitem',
+        text: item.title || '',
+        getSubmenuItems: () =>
+        item.menu.map(token => ({
           type: 'menuitem',
-          text: item.title || item.value,
+          text: token.title || token.value,
           onAction: () => interactions.insertTag({
-            title: item.title || item.value,
-            value: item.value
+          title: token.title || token.value,
+          value: token.value
           })
-        }
+        }))
+      }
+      : {
+        type: 'menuitem',
+        text: item.title || item.value,
+        onAction: () => interactions.insertTag({
+        title: item.title || item.value,
+        value: item.value
+        })
+      }
     )
   }
 

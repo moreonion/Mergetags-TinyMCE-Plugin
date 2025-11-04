@@ -11,11 +11,16 @@
 
     <script>
       var mergeTags = [
+        {
+          title: 'Form',
+          menu: [
         { value: 'form.firstName', title: 'First Name' },
         { value: 'form.lastName', title: 'Last Name' },
         { value: 'form.email', title: 'Email Address' },
         { value: 'form.phone', title: 'Phone Number' },
         { value: 'form.address', title: 'Address' }
+          ]
+        }
       ];
       tinymce.init({
         selector: '#editor',
