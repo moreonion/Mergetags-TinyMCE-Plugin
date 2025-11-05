@@ -71,24 +71,29 @@ class TokenStore {
   }
 
   buildMenuItems = (interactions) => {
-    if (!Array.isArray(this.#groups) || !this.#groups.length) {
+    if (!this.#groups?.length) {
       return [{ type: 'menuitem', text: 'No tags', enabled: false }]
     }
-    return this.#groups.map((item) => Array.isArray(item.menu)
-      ? {
+
+    const tokenToItem = (t) => ({
+      type: 'menuitem',
+      text: t.title ?? t.value ?? '',
+      onAction: () => interactions.insertTag({
+        title: t.title ?? t.value ?? '',
+        value: t.value
+      })
+    })
+
+    return this.#groups.map((item) => {
+      if (Array.isArray(item.menu)) {
+        return {
           type: 'nestedmenuitem',
-          text: item.title || '',
-          getSubmenuItems: () => this.buildMenuItems(item.menu)
+          text: item.title ?? '',
+          getSubmenuItems: () => item.menu.map(tokenToItem)
         }
-      : {
-          type: 'menuitem',
-          text: item.title || item.value,
-          onAction: () => interactions.insertTag({
-            title: item.title || item.value,
-            value: item.value
-          })
-        }
-    )
+      }
+      return tokenToItem(item)
+    })
   }
 
   getGroups () { return this.#groups }
