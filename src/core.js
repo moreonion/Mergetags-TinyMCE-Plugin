@@ -21,7 +21,11 @@ export default class Core {
     this.editor.on('BeforeSetContent', inbound)
     this.editor.on('PastePreProcess', inbound)
 
-    // Init / teardown
+    // PreInit / Init / teardown
+    this.editor.on('PreInit', () => {
+      this.editor.schema.addValidElements('span[class|contenteditable|data-mt-val]')
+    })
+
     this.editor.on('init', () => {
       const container = this.editor.getContainer()
       this.containerClickHandler = (event) => this.interactions.activateTokenOnClick(event)
