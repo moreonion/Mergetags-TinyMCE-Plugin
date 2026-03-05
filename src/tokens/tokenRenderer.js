@@ -68,10 +68,24 @@ export default class TokenRenderer {
   }
 
   replaceDelimitersWithTokens (html, tokens) {
+    const container = document.createElement('div')
+    container.innerHTML = html
+    const showText = container.ownerDocument.defaultView.NodeFilter.SHOW_TEXT
+    const walker = container.ownerDocument.createTreeWalker(container, showText)
+    // We mutate the DOM while replacing delimiters with token spans; snapshot text nodes
+    // first so TreeWalker position changes don't cause skipped original nodes.
+    const textNodes = []
+    for (let node; (node = walker.nextNode());) textNodes.push(node)
     const re = this.getDelimiterRegex('g')
-    return html.replace(re, (match, rawValue) => {
-      const token = tokens.getByValue(String(rawValue))
-      return token ? this.toSpanHTML(token) : match
-    })
+    for (const node of textNodes) {
+      const replaced = (node.nodeValue || '').replace(re, (match, rawValue) => {
+        const token = tokens.getByValue(String(rawValue))
+        return token ? this.toSpanHTML(token) : match
+      })
+      if (replaced === node.nodeValue) continue
+      const fragment = node.ownerDocument.createRange().createContextualFragment(replaced)
+      node.replaceWith(fragment)
+    }
+    return container.innerHTML
   }
 }
