@@ -21,6 +21,8 @@ The plugin registers a TinyMCE toolbar button and menu item for inserting merge 
 3. When used, the plugin inserts a placeholder like `{{first_name}}` into the editor content.
 4. Autocompletion is supported when typing `{{` in the editor.
 
+Merge tags inside URL attributes such as `href` are preserved as raw delimiters (for example `href="{{url.confirmation}}"`) so links stay valid while visible text still renders token pills in the editor.
+
 **Example:**
 
 ```js

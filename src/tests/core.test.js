@@ -28,6 +28,22 @@ describe('Core transforms', () => {
     assert.strictEqual(back, '<p>Hello {{first_name}}</p>')
   })
 
+  test('keeps href delimiters raw while tokenizing visible text and round-trips', () => {
+    tokens.setTokens([{ title: 'URL', menu: [{ title: 'Confirmation', value: 'url.comfirmation' }] }])
+    const html = '<a title="title" href="{{url.comfirmation}}">{{url.comfirmation}}</a>'
+
+    const upgraded = core.renderer.replaceDelimitersWithTokens(html, tokens)
+    const container = document.createElement('div')
+    container.innerHTML = upgraded
+    const link = container.querySelector('a')
+
+    assert.strictEqual(link?.getAttribute('href'), '{{url.comfirmation}}')
+    assert.ok(link?.querySelector('[data-mt-val="url.comfirmation"]'))
+
+    const back = core.renderer.replaceTokensWithDelimiters(upgraded)
+    assert.strictEqual(back, html)
+  })
+
   test('insertByValue inserts a token element', () => {
     editor.setContent('<p>start</p>')
     const before = editor.getBody().innerHTML.length
