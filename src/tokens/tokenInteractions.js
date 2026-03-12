@@ -27,7 +27,9 @@ export default class TokenInteractions {
   // Insert a token at current selection
   insertTag (tag) {
     this.editor.undoManager.transact(() => {
-      const el = this.renderer.createTokenElement(tag)
+      const el = typeof tag.markup === 'string'
+        ? document.createRange().createContextualFragment(tag.markup).firstChild
+        : this.renderer.createTokenElement(tag)
       this.editor.selection.setNode(el)
     })
   }

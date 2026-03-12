@@ -3,6 +3,16 @@ class TokenStore {
   #flat = []
   #byValue = new Map()
 
+  static normalizeToken (item) {
+    if (typeof item?.value === 'undefined') return null
+    const token = {
+      title: String(item?.title ?? item.value),
+      value: String(item.value)
+    }
+    if (typeof item?.markup === 'string') token.markup = item.markup
+    return token
+  }
+
   // Normalize user-provided token config (arbitrary shape) into groups/tokens
   static normalizeGroups (input) {
     if (!Array.isArray(input)) return []
@@ -15,13 +25,7 @@ class TokenStore {
             menu: TokenStore.normalizeGroups(groupItems)
           }
         }
-        if (typeof item?.value !== 'undefined') {
-          return {
-            title: String(item?.title ?? item.value),
-            value: String(item.value)
-          }
-        }
-        return null
+        return TokenStore.normalizeToken(item)
       })
       .filter(Boolean)
   }
@@ -30,12 +34,7 @@ class TokenStore {
   static flatten (items, acc = []) {
     for (const item of items) {
       if (Array.isArray(item?.menu)) TokenStore.flatten(item.menu, acc)
-      else if (typeof item?.value !== 'undefined') {
-        acc.push({
-          title: String(item.title ?? item.value),
-          value: String(item.value)
-        })
-      }
+      else if (typeof item?.value !== 'undefined') acc.push(TokenStore.normalizeToken(item))
     }
     return acc
   }
@@ -77,11 +76,8 @@ class TokenStore {
 
     const tokenToItem = (t) => ({
       type: 'menuitem',
-      text: t.title ?? t.value ?? '',
-      onAction: () => interactions.insertTag({
-        title: t.title ?? t.value ?? '',
-        value: t.value
-      })
+      text: t.title,
+      onAction: () => interactions.insertTag(t)
     })
 
     return this.#groups.map((item) => {
