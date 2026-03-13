@@ -56,6 +56,16 @@ const makeOptions = () => ({
 })
 
 const makeRenderer = () => ({
+  createInsertionNode: vi.fn((tag) => {
+    if (tag.markup === undefined) {
+      const el = document.createElement('span')
+      el.className = 'mt-token'
+      el.setAttribute('data-mt-val', tag.value)
+      el.textContent = tag.title || tag.value
+      return el
+    }
+    return document.createRange().createContextualFragment(tag.markup).firstChild
+  }),
   createTokenElement: vi.fn((tag) => {
     const el = document.createElement('span')
     el.className = 'mt-token'
@@ -110,7 +120,7 @@ describe('TokenInteractions', () => {
     interactions.insertByValue('hello')
     const insertedNode = editor.selection.setNode.mock.calls[0][0]
 
-    expect(renderer.createTokenElement).toHaveBeenCalledWith({ title: 'HELLO', value: 'hello' })
+    expect(renderer.createInsertionNode).toHaveBeenCalledWith({ title: 'HELLO', value: 'hello' })
     expect(insertedNode.outerHTML).toBe('<span class="mt-token" data-mt-val="hello">HELLO</span>')
   })
 
@@ -119,7 +129,11 @@ describe('TokenInteractions', () => {
     interactions.insertByValue('confirmation.url')
     const insertedNode = editor.selection.setNode.mock.calls[0][0]
 
-    expect(renderer.createTokenElement).not.toHaveBeenCalled()
+    expect(renderer.createInsertionNode).toHaveBeenCalledWith({
+      title: 'CONFIRMATION.URL',
+      value: 'confirmation.url',
+      markup: confirmationMarkup
+    })
     expect(insertedNode.outerHTML).toBe(confirmationMarkup)
   })
 
