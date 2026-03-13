@@ -4,37 +4,37 @@ class TokenStore {
   #byValue = new Map()
 
   static normalizeToken (item) {
-    if (typeof item?.value === 'undefined') return null
-    const token = {
-      title: String(item?.title ?? item.value),
-      value: String(item.value)
+    if (typeof item.value === 'undefined') {
+      throw new Error('Token value is required')
     }
-    if (typeof item?.markup === 'string') token.markup = item.markup
-    return token
+    return {
+      title: String(item.title ?? item.value),
+      value: String(item.value),
+      markup: item.markup
+    }
   }
 
-  // Normalize user-provided token config (arbitrary shape) into groups/tokens
+  // Normalize user-provided token config into groups/tokens.
   static normalizeGroups (input) {
     if (!Array.isArray(input)) return []
     return input
       .map((item) => {
-        const groupItems = item?.menu ?? item?.items
+        const groupItems = item.menu ?? item.items
         if (Array.isArray(groupItems)) {
           return {
-            title: String(item?.title ?? ''),
+            title: String(item.title ?? ''),
             menu: TokenStore.normalizeGroups(groupItems)
           }
         }
         return TokenStore.normalizeToken(item)
       })
-      .filter(Boolean)
   }
 
   // Depth-first flatten of normalized groups to tokens
   static flatten (items, acc = []) {
     for (const item of items) {
-      if (Array.isArray(item?.menu)) TokenStore.flatten(item.menu, acc)
-      else if (typeof item?.value !== 'undefined') acc.push(TokenStore.normalizeToken(item))
+      if (Array.isArray(item.menu)) TokenStore.flatten(item.menu, acc)
+      else acc.push(item)
     }
     return acc
   }
@@ -47,7 +47,7 @@ class TokenStore {
 
   // Pulls the list from options (kept here to avoid leaking normalize logic)
   refreshFromOptions (options) {
-    this.setTokens(options?.getList?.())
+    this.setTokens(options.getList())
   }
 
   // Recompute flat + maps from groups
@@ -70,7 +70,7 @@ class TokenStore {
   }
 
   buildMenuItems = (interactions) => {
-    if (!this.#groups?.length) {
+    if (!this.#groups.length) {
       return [{ type: 'menuitem', text: 'No tags', enabled: false }]
     }
 
