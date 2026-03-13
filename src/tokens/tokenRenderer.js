@@ -40,6 +40,14 @@ export default class TokenRenderer {
     return el
   }
 
+  // Create the DOM node inserted into the editor for a token-like item.
+  createInsertionNode (tag) {
+    if (tag.markup === undefined) {
+      return this.createTokenElement(tag)
+    }
+    return document.createRange().createContextualFragment(tag.markup).firstChild
+  }
+
   // Create token HTML string
   toSpanHTML (tag, uid) {
     return this.createTokenElement(tag, uid).outerHTML

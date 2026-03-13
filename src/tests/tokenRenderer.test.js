@@ -36,6 +36,13 @@ describe('TokenRenderer', () => {
     expect(html).toBe(`<span class="${options.getTokenClass()}" data-mt-val="first" contenteditable="false"><span class="${options.getBraceClass()}">${options.getPrefix()}</span>First Name<span class="${options.getBraceClass()}">${options.getSuffix()}</span></span>`)
   })
 
+  it('creates insertion nodes from raw markup when provided', () => {
+    const { renderer } = setup()
+    const node = renderer.createInsertionNode({ value: 'confirmation.url', markup: '<a href="{{confirmation.url}}">{{confirmation.url}}</a>' })
+
+    expect(node.outerHTML).toBe('<a href="{{confirmation.url}}">{{confirmation.url}}</a>')
+  })
+
   it('getDelimiterRegex matches with spaces and NBSP and is escaped', () => {
     const { renderer } = setup({ prefix: '[[', suffix: ']]' })
     const re = renderer.getDelimiterRegex('g')
