@@ -6,13 +6,25 @@ import TokenStore from '../tokens/tokenStore.js'
 import TokenRenderer from '../tokens/tokenRenderer.js'
 import TokenInteractions from '../tokens/tokenInteractions.js'
 
+const confirmationMarkup = '<a href="{{confirmation.url}}">{{confirmation.url}}</a>'
+
 let editor, options, tokens, renderer, interactions, core
 beforeEach(() => {
   editor = createEditorStub()
   options = new Options(editor.options)
   options.register()
   tokens = new TokenStore()
-  tokens.setTokens([{ title: 'User', menu: [{ title: 'First', value: 'first_name' }, { title: 'Last', value: 'last_name' }] }])
+  tokens.setTokens([{
+    title: 'User',
+    menu: [
+      { title: 'First', value: 'form.first_name' },
+      {
+        title: 'Confirmation URL',
+        value: 'confirmation.url',
+        markup: confirmationMarkup
+      }
+    ]
+  }])
   renderer = new TokenRenderer(options)
   interactions = new TokenInteractions(editor, options, renderer, tokens)
   core = new Core(editor, options, tokens, renderer, interactions)
@@ -20,12 +32,12 @@ beforeEach(() => {
 
 describe('Core transforms', () => {
   test('replaceDelimitersWithTokens / replaceTokensWithDelimiters round-trip', () => {
-    const html = `<p>Hello ${options.getPrefix()}first_name${options.getSuffix()}</p>`
+    const html = `<p>Hello ${options.getPrefix()}form.first_name${options.getSuffix()}</p>`
     const upgraded = core.renderer.replaceDelimitersWithTokens(html, tokens)
-    assert.match(upgraded, /<span[^>]+data-mt-val="first_name"/)
+    assert.match(upgraded, /<span[^>]+data-mt-val="form\.first_name"/)
 
     const back = core.renderer.replaceTokensWithDelimiters(upgraded)
-    assert.strictEqual(back, '<p>Hello {{first_name}}</p>')
+    assert.strictEqual(back, '<p>Hello {{form.first_name}}</p>')
   })
 
   test('keeps href delimiters raw while tokenizing visible text and round-trips', () => {
@@ -47,15 +59,15 @@ describe('Core transforms', () => {
   test('insertByValue inserts a token element', () => {
     editor.setContent('<p>start</p>')
     const before = editor.getBody().innerHTML.length
-    core.interactions.insertByValue('first_name')
+    core.interactions.insertByValue('form.first_name')
     const after = editor.getBody().innerHTML.length
     assert.isAtLeast(after, before)
-    assert.ok(editor.getBody().querySelector('[data-mt-val="first_name"]'))
+    assert.ok(editor.getBody().querySelector('[data-mt-val="form.first_name"]'))
   })
 
   test('activateTokenOnClick activates tokens', () => {
-    editor.setContent(core.renderer.replaceDelimitersWithTokens(`${options.getPrefix()}first_name${options.getSuffix()}`, tokens))
-    const token = editor.getBody().querySelector('[data-mt-val="first_name"]')
+    editor.setContent(core.renderer.replaceDelimitersWithTokens(`${options.getPrefix()}form.first_name${options.getSuffix()}`, tokens))
+    const token = editor.getBody().querySelector('[data-mt-val="form.first_name"]')
     const ev = { target: token, preventDefault: () => {} }
     core.interactions.activateTokenOnClick(ev)
     assert.isTrue(token.classList.contains(options.getActiveClass()))
@@ -78,8 +90,54 @@ describe('Core ui mount', () => {
 
     const api = { hide: vi.fn() }
     const insertSpy = vi.spyOn(interactions, 'insertByValue')
-    ac.onAction(api, null, 'first_name')
+    ac.onAction(api, null, 'form.first_name')
     assert.isTrue(insertSpy.mock.calls.length >= 1)
     assert.isTrue(api.hide.mock.calls.length >= 1)
+  })
+
+  test('menu insertion renders confirmation.url as a regular link', () => {
+    core.mount()
+    const fetch = editor._menuButtons.mergetags.fetch
+    let items = []
+    fetch((result) => { items = result })
+
+    const confirmationItem = items[0].getSubmenuItems().find((item) => item.text === 'Confirmation URL')
+    confirmationItem.onAction()
+
+    assert.strictEqual(
+      editor.getBody().innerHTML,
+      confirmationMarkup
+    )
+    assert.isNull(editor.getBody().querySelector('[data-mt-val="confirmation.url"]'))
+  })
+
+  test('autocomplete insertion renders confirmation.url as a regular link', () => {
+    core.mount()
+    const ac = editor._autocompleters.mergetags
+
+    ac.onAction({ hide: vi.fn() }, null, 'confirmation.url')
+
+    assert.strictEqual(
+      editor.getBody().innerHTML,
+      confirmationMarkup
+    )
+    assert.isNull(editor.getBody().querySelector('[data-mt-val="confirmation.url"]'))
+  })
+
+  test('normal token insertion remains a mergetag span', () => {
+    core.mount()
+    const fetch = editor._menuButtons.mergetags.fetch
+    let items = []
+    fetch((result) => { items = result })
+
+    const firstNameItem = items[0].getSubmenuItems().find((item) => item.text === 'First')
+    firstNameItem.onAction()
+
+    const inserted = editor.getBody().querySelector('[data-mt-val="form.first_name"]')
+    assert.ok(inserted)
+    assert.strictEqual(inserted.tagName, 'SPAN')
+    assert.include(inserted.textContent, '{{')
+    assert.include(inserted.textContent, 'form.first_name')
+    assert.include(inserted.textContent, '}}')
   })
 })

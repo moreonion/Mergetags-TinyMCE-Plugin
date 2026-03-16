@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import TokenInteractions from '../tokens/tokenInteractions.js'
 
+const confirmationMarkup = '<a href="{{confirmation.url}}">{{confirmation.url}}</a>'
+
 const setupDOM = () => {
   document.body.innerHTML = `
     <div id="root">
@@ -54,6 +56,16 @@ const makeOptions = () => ({
 })
 
 const makeRenderer = () => ({
+  createInsertionNode: vi.fn((tag) => {
+    if (tag.markup === undefined) {
+      const el = document.createElement('span')
+      el.className = 'mt-token'
+      el.setAttribute('data-mt-val', tag.value)
+      el.textContent = tag.title || tag.value
+      return el
+    }
+    return document.createRange().createContextualFragment(tag.markup).firstChild
+  }),
   createTokenElement: vi.fn((tag) => {
     const el = document.createElement('span')
     el.className = 'mt-token'
@@ -64,7 +76,16 @@ const makeRenderer = () => ({
 })
 
 const makeStore = () => ({
-  getByValue: (v) => ({ title: String(v).toUpperCase(), value: String(v) })
+  getByValue: (v) => {
+    const value = String(v)
+    return value === 'confirmation.url'
+      ? {
+          title: 'CONFIRMATION.URL',
+          value: value,
+          markup: confirmationMarkup
+        }
+      : { title: value.toUpperCase(), value: value }
+  }
 })
 
 describe('TokenInteractions', () => {
@@ -96,10 +117,24 @@ describe('TokenInteractions', () => {
 
   it('insertByValue inserts a created element', () => {
     const interactions = new TokenInteractions(editor, options, renderer, store)
-    const before = editor.getBody().innerHTML.length
     interactions.insertByValue('hello')
-    const after = editor.getBody().innerHTML.length
-    expect(after).toBeGreaterThan(before)
+    const insertedNode = editor.selection.setNode.mock.calls[0][0]
+
+    expect(renderer.createInsertionNode).toHaveBeenCalledWith({ title: 'HELLO', value: 'hello' })
+    expect(insertedNode.outerHTML).toBe('<span class="mt-token" data-mt-val="hello">HELLO</span>')
+  })
+
+  it('insertByValue renders token markup as normal HTML', () => {
+    const interactions = new TokenInteractions(editor, options, renderer, store)
+    interactions.insertByValue('confirmation.url')
+    const insertedNode = editor.selection.setNode.mock.calls[0][0]
+
+    expect(renderer.createInsertionNode).toHaveBeenCalledWith({
+      title: 'CONFIRMATION.URL',
+      value: 'confirmation.url',
+      markup: confirmationMarkup
+    })
+    expect(insertedNode.outerHTML).toBe(confirmationMarkup)
   })
 
   it('activateTokenOnClick activates token or clears if none', () => {
